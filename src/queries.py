@@ -11,7 +11,9 @@ SELECT
     currency_code,
     revenue,
     tickets_count,
+    event_id,
     event_type_main,
+    service_name,
     region_name,
     (p.created_dt_msk::date
         - LAG(p.created_dt_msk::date) OVER (

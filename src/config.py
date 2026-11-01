@@ -1,10 +1,7 @@
 import os
-from dotenv import load_dotenv
-
 
 def get_db_connection_string() -> str:
     """Собирает строку подключения к PostgreSQL из переменных окружения."""
-    load_dotenv()
 
     user = os.getenv("DB_USER")
     pwd = os.getenv("DB_PWD")
@@ -20,3 +17,5 @@ def get_db_connection_string() -> str:
         raise ValueError(f"Не заданы переменные окружения: {', '.join(missing)}")
 
     return f'postgresql://{user}:{pwd}@{host}:{port}/{name}'
+
+TENGE_RATE_URL="https://code.s3.yandex.net/datasets/final_tickets_tenge_df.csv"
