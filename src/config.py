@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
 
 
 def get_db_connection_string() -> str:

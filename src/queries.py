@@ -1,4 +1,4 @@
-query = """
+PURCHASES_QUERY = """
 WITH set_config_precode AS (
     SELECT set_config('synchronize_seqscans', 'off', true)
 )
