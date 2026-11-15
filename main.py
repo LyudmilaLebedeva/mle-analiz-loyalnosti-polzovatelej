@@ -23,7 +23,7 @@ def main():
             OrderProcessor(df)
             .convert_tenge_to_rubles(rate_df)
             .optimize_dtypes()
-            .remove_outliers_by_bounds("revenue_rub", left=0)
+            .remove_outliers_by_bounds("revenue_rub", left=0, inclusive=False)
             .remove_outliers_by_bounds("revenue_rub", right="q99")
             .drop_duplicates(
                 subset=["user_id", "device_type_canonical", "created_ts_msk", "event_id", "revenue"],
@@ -96,6 +96,22 @@ def main():
         print(f"  Корреляция Спирмена: rho = {corr:.3f}, p-value = {p_val:.4f}")
         print("  Гипотеза подтверждена" if corr > 0 and p_val < 0.05
               else "  Гипотеза НЕ подтверждена")
+
+        # Связь между средней выручкой сервиса с заказа и повторными заказами
+
+        is_two_stats = profiles.segment_stats('is_two', agg={'avg_revenue_rub': 'describe'})
+
+        print(is_two_stats.T)
+
+        # Связь между днем недели первой покупки и повторными заказами
+
+        profiles.df['first_order_weekday_number'] = profiles.df['first_order_date'].dt.weekday
+
+        users_by_first_order_weekday_stats = profiles.segment_stats(
+            'first_order_weekday_number',
+            agg = {'is_two': ['sum', 'mean']}
+        )
+        print(users_by_first_order_weekday_stats.sort_values(by='segment'))
 
         print(profiles.phik_matrix(
                 [
