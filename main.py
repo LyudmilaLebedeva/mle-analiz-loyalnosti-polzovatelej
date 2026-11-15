@@ -4,8 +4,7 @@ from scipy import stats
 from dotenv import load_dotenv
 
 from src.loading import DataLoader
-from src.processing import OrderProcessor
-from src.processing.profiles import ProfileProcessor
+from src.processing import OrderProcessor, ProfileProcessor, Report
 from src.queries import PURCHASES_QUERY
 from src.config import get_db_connection_string, TENGE_RATE_URL
 
@@ -113,7 +112,7 @@ def main():
         )
         print(users_by_first_order_weekday_stats.sort_values(by='segment'))
 
-        print(profiles.phik_matrix(
+        phik = profiles.phik_matrix(
                 [
                     'total_orders_segment', 
                     'avg_revenue_rub', 
@@ -124,7 +123,54 @@ def main():
                 ],
                 ['avg_revenue_rub']
             )
+        print(phik)
+
+        # ---------- Краткое резюме ----------
+        total_users = len(profiles.df)
+        repeat_users = int((profiles.df["is_two"] == True).sum())
+        one_time_users = total_users - repeat_users
+
+        concert_rate = events_stats.loc[CONCERT_EVENT, "is_two_mean"]
+        sport_rate   = events_stats.loc[SPORT_EVENT,   "is_two_mean"]
+
+        region_corr, region_p = stats.spearmanr(
+            regiones_stats.reset_index().iloc[:-1]["count"],
+            regiones_stats.reset_index().iloc[:-1]["is_two_mean"],
         )
+
+        mobile_share = devices_stats.loc["mobile", "share"]
+        mobile_repeat = devices_stats.loc["mobile", "is_two_mean"]
+        desktop_repeat = devices_stats.loc["desktop", "is_two_mean"]
+
+        top_region = regiones_stats.index[0]
+        top_region_share = regiones_stats.loc[top_region, "share"]
+
+        one_time_median = is_two_stats.loc["False", "avg_revenue_rub_50%"]
+        repeat_median = is_two_stats.loc["True", "avg_revenue_rub_50%"]
+
+        top_links = phik.unstack().sort_values(ascending=False).iloc[1:4]
+        phik_top_links = [
+            (a, b, val) for (a, b), val in top_links.items()
+        ]
+
+        report = Report(
+            total_users=total_users,
+            repeat_users=repeat_users,
+            one_time_users=one_time_users,
+            concert_rate=concert_rate,
+            sport_rate=sport_rate,
+            region_rho=region_corr,
+            region_p=region_p,
+            mobile_share=mobile_share,
+            mobile_repeat=mobile_repeat,
+            desktop_repeat=desktop_repeat,
+            top_region=top_region,
+            top_region_share=top_region_share,
+            one_time_median=one_time_median,
+            repeat_median=repeat_median,
+            phik_top_links=phik_top_links,
+        )
+        print(report.generate())
 
 
     except Exception as e:
