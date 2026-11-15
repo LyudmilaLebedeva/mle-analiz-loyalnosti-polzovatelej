@@ -1,5 +1,6 @@
 import sys
 
+from scipy import stats
 from dotenv import load_dotenv
 
 from src.loading import DataLoader
@@ -7,7 +8,6 @@ from src.processing import OrderProcessor
 from src.processing.profiles import ProfileProcessor
 from src.queries import PURCHASES_QUERY
 from src.config import get_db_connection_string, TENGE_RATE_URL
-
 
 def main():
     load_dotenv()
@@ -46,11 +46,56 @@ def main():
                 )
             )
 
-        print(profiles.segment_stats('device_type_canonical', agg={'is_two': ['sum', 'mean']}))
+        devices_stats = profiles.segment_stats('device_type_canonical', agg={'is_two': ['sum', 'mean']})
+        print(devices_stats)
 
-        print(profiles.segment_stats('region_name', top_n=10, agg={'is_two': ['sum', 'mean']}))
+        regiones_stats = profiles.segment_stats('region_name', top_n=10, agg={'is_two': ['sum', 'mean']})
+        print(regiones_stats)
 
-        print(profiles.segment_stats('event_type_main', agg={'is_two': ['sum', 'mean']}))
+        events_stats = profiles.segment_stats('event_type_main', agg={'is_two': ['sum', 'mean']})
+        print(events_stats)
+        
+        # ---------- Гипотеза 1 ----------
+        print("\nПроверка гипотезы 1:")
+        print(
+            "Пользователи, которые совершили первый заказ на спортивные мероприятия, "
+            "совершают повторный заказ чаще, чем пользователи, оформившие свой первый заказ на концерты"
+        )
+
+        CONCERT_EVENT = 'концерты'
+        SPORT_EVENT = 'спорт'
+        
+        concert_repeat_rate = events_stats.loc[CONCERT_EVENT, "is_two_mean"]
+        sport_repeat_rate   = events_stats.loc[SPORT_EVENT,   "is_two_mean"]
+        concert_n           = events_stats.loc[CONCERT_EVENT, "count"]
+        sport_n             = events_stats.loc[SPORT_EVENT,   "count"]
+        concert_two_sum     = events_stats.loc[CONCERT_EVENT, "is_two_sum"]
+        sport_two_sum       = events_stats.loc[SPORT_EVENT,   "is_two_sum"]
+
+        diff   = sport_repeat_rate - concert_repeat_rate
+        p_pool = (sport_two_sum + concert_two_sum) / (sport_n + concert_n)
+        z      = diff / (p_pool * (1 - p_pool) * (1 / sport_n + 1 / concert_n)) ** 0.5
+        p_val  = 1 - stats.norm.cdf(z)
+
+        print(f"  Концерты: {concert_repeat_rate:.2%}, Спорт: {sport_repeat_rate:.2%}")
+        print(f"  Разница: {diff:.2%}, z = {z:.3f}, p-value = {p_val:.4f}")
+        print("  Гипотеза подтверждена" if p_val < 0.05 and diff > 0
+              else "  Гипотеза НЕ подтверждена")
+
+        # ---------- Гипотеза 2 ----------
+        print("\nПроверка гипотезы 2:")
+        print(
+            "В регионах, где больше всего пользователей посещают мероприятия, "
+            "выше доля повторных заказов, чем в менее активных регионах"
+        )
+
+        region_df = regiones_stats.reset_index().iloc[:-1]
+
+        corr, p_val = stats.spearmanr(region_df["count"], region_df["is_two_mean"])
+
+        print(f"  Корреляция Спирмена: rho = {corr:.3f}, p-value = {p_val:.4f}")
+        print("  Гипотеза подтверждена" if corr > 0 and p_val < 0.05
+              else "  Гипотеза НЕ подтверждена")
 
         print(profiles.phik_matrix(
                 [

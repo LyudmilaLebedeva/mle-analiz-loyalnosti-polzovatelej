@@ -267,12 +267,12 @@ class BaseProcessor:
                 grouped = grouped.reset_index().rename(columns={"_segment": "segment"})
                 result = result.merge(grouped, on="segment", how="left")
 
-        result = result.sort_values("count", ascending=False).reset_index(drop=True)
+        result = result.sort_values("count", ascending=False).set_index("segment")
 
         if top_n is not None:
-            mask = result["segment"].eq(other_name)
+            mask = result.index == other_name
             if mask.any():
-                result = pd.concat([result[~mask], result[mask]], ignore_index=True)
+                result = pd.concat([result[~mask], result[mask]])
 
         print(f"\nСегменты по '{column}': {len(result)} групп")
         return result
